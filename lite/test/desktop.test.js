@@ -34,7 +34,8 @@ const watchPage = (withNativeButton = true) => `<!doctype html><title>t</title>
 async function withPage(run, { html = watchPage(), url = 'https://www.youtube.com/watch?v=x' } = {}) {
     const browser = await playwright.chromium.launch()
     try {
-        const page = await browser.newPage({ viewport: { width: 1000, height: 600 }, locale: 'ru-RU' })
+        const context = await browser.newContext({ viewport: { width: 1000, height: 600 }, locale: 'ru-RU', hasTouch: true })
+        const page = await context.newPage()
         await page.route('https://www.youtube.com/**', (route) => route.fulfill({ contentType: 'text/html', body: html }))
         await page.route('https://example.org/**', (route) => route.fulfill({ contentType: 'text/html', body: html }))
         await page.addInitScript(script)
@@ -52,8 +53,11 @@ test('a large button appears inside the player and is big enough for a finger', 
         await button(page).waitFor({ state: 'attached' })
         assert.equal(await page.evaluate(() => document.getElementById('ultrayt-fullscreen').parentElement.id), 'movie_player')
 
-        const box = await button(page).boundingBox()
-        assert.ok(box.width >= 64 && box.height >= 64, `button is ${box.width}x${box.height}`)
+        const circle = await page.locator('#ultrayt-fullscreen > span').boundingBox()
+        assert.ok(circle.width >= 100 && circle.height >= 100, `the round button is ${circle.width}x${circle.height}`)
+
+        const area = await button(page).boundingBox()
+        assert.ok(area.width >= circle.width + 30, `the tap area is ${area.width}x${area.height}, the round button ${circle.width}`)
         assert.equal(await button(page).getAttribute('aria-label'), 'Во весь экран')
     })
 })
@@ -129,4 +133,56 @@ test('nothing is added on a page without a player', { skip: !playwright }, async
         await page.waitForTimeout(1200)
         assert.equal(await page.evaluate(() => document.querySelectorAll('#ultrayt-fullscreen').length), 0)
     }, { html: '<!doctype html><title>t</title><body>home</body>', url: 'https://www.youtube.com/' })
+})
+
+test('a finger tap near the edge of the tap area, outside the round picture, still works', { skip: !playwright }, async () => {
+    await withPage(async (page) => {
+        await button(page).waitFor({ state: 'visible' })
+        const area = await button(page).boundingBox()
+
+        // 6 px inside the corner of the square: far from the centre and outside the circle
+        await page.touchscreen.tap(area.x + 6, area.y + 6)
+        await page.waitForFunction(() => !!document.fullscreenElement)
+        assert.equal(await page.evaluate(() => window.__playerClicks), 0, 'the tap must not reach the player')
+    })
+})
+
+test('in fullscreen the button sits higher than in the window', { skip: !playwright }, async () => {
+    await withPage(async (page) => {
+        await button(page).waitFor({ state: 'visible' })
+        const player = await page.locator('#movie_player').boundingBox()
+        const distance = async () => {
+            const circle = await page.locator('#ultrayt-fullscreen > span').boundingBox()
+            const frame = await page.evaluate(() => document.fullscreenElement ? { top: 0, height: innerHeight } : null)
+            const bottom = frame ? frame.height : player.y + player.height
+            return Math.round(bottom - (circle.y + circle.height))
+        }
+
+        const inWindow = await distance()
+        await button(page).click()
+        await page.waitForFunction(() => !!document.fullscreenElement)
+        await page.waitForFunction(() => document.getElementById('ultrayt-fullscreen').dataset.state === 'exit')
+        const inFullscreen = await distance()
+
+        assert.ok(inWindow >= 80 && inWindow <= 100, `in the window ${inWindow}`)
+        assert.ok(inFullscreen >= inWindow + 60, `in fullscreen ${inFullscreen}, in the window ${inWindow}`)
+    })
+})
+
+test('it steps aside while the settings menu is open', { skip: !playwright }, async () => {
+    await withPage(async (page) => {
+        await button(page).waitFor({ state: 'visible' })
+        await page.evaluate(() => {
+            const settings = document.createElement('button')
+            settings.className = 'ytp-settings-button'
+            settings.setAttribute('aria-expanded', 'false')
+            document.getElementById('movie_player').appendChild(settings)
+            window.__settings = settings
+        })
+        await page.evaluate(() => window.__settings.setAttribute('aria-expanded', 'true'))
+        await page.waitForFunction(() => getComputedStyle(document.getElementById('ultrayt-fullscreen')).pointerEvents === 'none')
+
+        await page.evaluate(() => window.__settings.setAttribute('aria-expanded', 'false'))
+        await page.waitForFunction(() => getComputedStyle(document.getElementById('ultrayt-fullscreen')).pointerEvents === 'auto')
+    })
 })

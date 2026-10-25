@@ -28,7 +28,7 @@
 
 using Microsoft::WRL::ComPtr;
 
-#define LITE_VERSION L"0.3.0"
+#define LITE_VERSION L"0.3.1"
 
 static const wchar_t kAppName[] = L"UltraYT Lite";
 static const wchar_t kClassName[] = L"UltraYTLiteWindow";

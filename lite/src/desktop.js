@@ -1,6 +1,6 @@
 // Page script for the normal youtube.com site (not the TV interface).
 // Adds a large round fullscreen button inside the player, because the one in YouTube's own control bar is small for a finger.
-// Only YouTube's own markup is used (#movie_player, .ytp-fullscreen-button, .ytp-autohide), nothing here depends on its scripts.
+// Only YouTube's own markup is used (#movie_player, .ytp-fullscreen-button, .ytp-autohide, .ytp-settings-button), nothing here depends on its scripts.
 // Styles are set through element.style (YouTube's content security policy and Trusted Types do not allow markup injection).
 (() => {
     'use strict';
@@ -8,11 +8,23 @@
     if (window.top !== window) return;
     if (!/(^|\.)youtube\.com$/.test(location.hostname)) return;
     if (window.__ultraytDesktop) return;
-    window.__ultraytDesktop = { version: '0.3.0' };
+    window.__ultraytDesktop = { version: '0.3.1' };
 
     const BUTTON_ID = 'ultrayt-fullscreen';
-    const SIZE = 76;      // css pixels
+    const CIRCLE = 104;     // the visible round button, css pixels
+    const MARGIN = 22;      // transparent ring around it that also takes the tap, so a finger does not have to hit the middle
+    const HIT = CIRCLE + MARGIN * 2;
+    const ICON = 60;
     const SVG_NS = 'http://www.w3.org/2000/svg';
+
+    // distance of the visible circle from the bottom edge of the player: just above the control bar in the window,
+    // higher in fullscreen where the control bar and the things above it are bigger
+    const BOTTOM_NORMAL = 88;
+    const BOTTOM_FULLSCREEN = 176;
+    const SIDE = 20;
+
+    const COLOR = 'rgba(0, 0, 0, 0.62)';
+    const COLOR_PRESSED = 'rgba(70, 70, 70, 0.9)';
 
     const russian = /^ru\b/i.test(navigator.language || '');
     const labels = {
@@ -26,9 +38,10 @@
         exit: ['M9 4v5H4', 'M20 9h-5V4', 'M15 20v-5h5', 'M4 15h5v5']
     };
 
-    let button = null;
+    let button = null;   // the transparent square that takes the tap
+    let circle = null;   // the round picture inside it
     let observed = null;
-    let observer = null;
+    let observers = [];
 
     function applyStyle(el, rules) {
         for (const [name, value] of Object.entries(rules)) el.style.setProperty(name, value, 'important');
@@ -37,8 +50,8 @@
     function drawIcon(state) {
         const svg = document.createElementNS(SVG_NS, 'svg');
         svg.setAttribute('viewBox', '0 0 24 24');
-        svg.setAttribute('width', '46');
-        svg.setAttribute('height', '46');
+        svg.setAttribute('width', String(ICON));
+        svg.setAttribute('height', String(ICON));
         svg.setAttribute('fill', 'none');
         svg.setAttribute('stroke', '#fff');
         svg.setAttribute('stroke-width', '2.4');
@@ -77,35 +90,51 @@
         el.type = 'button';
         applyStyle(el, {
             position: 'absolute',
-            right: '20px',
-            bottom: '88px',
-            width: SIZE + 'px',
-            height: SIZE + 'px',
-            'min-width': SIZE + 'px',
+            right: (SIDE - MARGIN) + 'px',
+            bottom: (BOTTOM_NORMAL - MARGIN) + 'px',
+            width: HIT + 'px',
+            height: HIT + 'px',
+            'min-width': HIT + 'px',
             padding: '0',
             margin: '0',
-            border: '2px solid rgba(255, 255, 255, 0.35)',
-            'border-radius': '50%',
-            background: 'rgba(0, 0, 0, 0.62)',
+            border: '0',
+            'border-radius': '0',
+            background: 'transparent',
             display: 'flex',
             'align-items': 'center',
             'justify-content': 'center',
-            'z-index': '2000',
+            'z-index': '2147483000',
             cursor: 'pointer',
             outline: 'none',
             'touch-action': 'manipulation',
             '-webkit-tap-highlight-color': 'transparent',
-            transition: 'opacity 0.25s, background 0.15s'
+            transition: 'opacity 0.25s'
         });
+
+        circle = document.createElement('span');
+        applyStyle(circle, {
+            display: 'flex',
+            'align-items': 'center',
+            'justify-content': 'center',
+            width: CIRCLE + 'px',
+            height: CIRCLE + 'px',
+            'border-radius': '50%',
+            border: '2px solid rgba(255, 255, 255, 0.35)',
+            'box-sizing': 'border-box',
+            background: COLOR,
+            'pointer-events': 'none',
+            transition: 'background 0.15s'
+        });
+        el.appendChild(circle);
 
         // the player listens for clicks and touches to pause the video and to show its controls, the button must not trigger that
         for (const type of ['click', 'dblclick', 'mousedown', 'mouseup', 'pointerdown', 'pointerup', 'touchstart', 'touchend', 'contextmenu']) {
             el.addEventListener(type, (event) => event.stopPropagation());
         }
 
-        el.addEventListener('pointerdown', () => el.style.setProperty('background', 'rgba(60, 60, 60, 0.85)', 'important'));
+        el.addEventListener('pointerdown', () => circle.style.setProperty('background', COLOR_PRESSED, 'important'));
         for (const type of ['pointerup', 'pointercancel', 'pointerleave']) {
-            el.addEventListener(type, () => el.style.setProperty('background', 'rgba(0, 0, 0, 0.62)', 'important'));
+            el.addEventListener(type, () => circle.style.setProperty('background', COLOR, 'important'));
         }
 
         el.addEventListener('click', (event) => {
@@ -118,33 +147,47 @@
     }
 
     // the button follows the player's controls: visible together with them, hidden when they fade out
+    // it also steps aside while YouTube's settings menu is open, which opens in the same corner
     function syncVisibility() {
         if (!button || !button.parentElement) return;
 
-        const hidden = button.parentElement.classList.contains('ytp-autohide');
+        const player = button.parentElement;
+        const menuOpen = !!player.querySelector('.ytp-settings-button[aria-expanded="true"]');
+        const hidden = player.classList.contains('ytp-autohide') || menuOpen;
+
         button.style.setProperty('opacity', hidden ? '0' : '1', 'important');
         button.style.setProperty('pointer-events', hidden ? 'none' : 'auto', 'important');
     }
 
-    function syncIcon() {
+    function syncState() {
         if (!button) return;
 
-        const state = isFullscreen() ? 'exit' : 'enter';
+        const fullscreen = isFullscreen();
+        const state = fullscreen ? 'exit' : 'enter';
+
+        button.style.setProperty('bottom', ((fullscreen ? BOTTOM_FULLSCREEN : BOTTOM_NORMAL) - MARGIN) + 'px', 'important');
+
         if (button.dataset.state === state) return;
 
         button.dataset.state = state;
         button.setAttribute('aria-label', labels[state]);
         button.title = labels[state];
-        button.replaceChildren(drawIcon(state));
+        circle.replaceChildren(drawIcon(state));
     }
 
     function watchPlayer(player) {
         if (observed === player) return;
 
-        observer?.disconnect();
+        for (const observer of observers) observer.disconnect();
         observed = player;
-        observer = new MutationObserver(syncVisibility);
-        observer.observe(player, { attributes: true, attributeFilter: ['class'] });
+
+        const onClass = new MutationObserver(syncVisibility);
+        onClass.observe(player, { attributes: true, attributeFilter: ['class'] });
+
+        const onMenu = new MutationObserver(syncVisibility);
+        onMenu.observe(player, { attributes: true, attributeFilter: ['aria-expanded'], subtree: true });
+
+        observers = [onClass, onMenu];
     }
 
     // YouTube is a single page application: the player is created and replaced without a page load, so look again from time to time
@@ -156,11 +199,11 @@
         if (button.parentElement !== player) player.appendChild(button);
 
         watchPlayer(player);
-        syncIcon();
+        syncState();
         syncVisibility();
     }
 
-    document.addEventListener('fullscreenchange', syncIcon);
+    document.addEventListener('fullscreenchange', syncState);
     document.addEventListener('yt-navigate-finish', ensure);
     setInterval(ensure, 500);
     ensure();
