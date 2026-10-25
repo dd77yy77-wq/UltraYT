@@ -1,8 +1,8 @@
 {
     "name": "ultrayt",
-    "version": "2.0.1",
+    "version": "2.1.0",
     "description": "YouTube for TV, on your PC",
-    "main": "src/index.js",
+    "main": "src/boot.js",
     "scripts": {
         "start": "electron .",
         "test": "node --test",
@@ -10,7 +10,8 @@
         "mac:build": "electron-builder --mac",
         "linux:build": "electron-builder --linux",
         "linux:build-unpacked": "electron-builder --linux --dir",
-        "linux:build-appimage": "electron-builder --linux appimage"
+        "linux:build-appimage": "electron-builder --linux appimage",
+        "make-update": "node tools/make-update.js"
     },
     "keywords": [],
     "author": "UltraYT",

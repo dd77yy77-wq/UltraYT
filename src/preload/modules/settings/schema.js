@@ -37,6 +37,12 @@ module.exports = (locale) => [
                 rows: [
                     { type: 'toggle', key: 'pause_on_blur' }
                 ]
+            },
+            {
+                id: 'updates',
+                rows: [
+                    { type: 'toggle', key: 'auto_update' }
+                ]
             }
         ]
     },

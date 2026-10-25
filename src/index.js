@@ -253,6 +253,10 @@ async function main() {
             win.webContents.send('config-update', config)
         }
 
+        if ('auto_update' in newConfig) {
+            updater.onPreferenceChanged()
+        }
+
         event.returnValue = config;
     })
 
@@ -300,7 +304,11 @@ async function main() {
 
     await createWindow()
 
-    updater.setup({ electron })
+    updater.setup({
+        electron,
+        getWindow: () => win,
+        isAutoUpdateEnabled: () => configManager.get().auto_update !== false
+    })
 
     userstyles.startWatcher()
 

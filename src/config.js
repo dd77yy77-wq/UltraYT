@@ -43,6 +43,7 @@ const defaults = { //mess
     touch_overlay: true, //whether or not to enable the touch overlay interface when touch is detected
     controller_support: true, //whether or not to enable game controller support
     device_discoverability: true, //whether or not to enable DIAL support
+    auto_update: true //whether or not to check for new versions at startup and download them in the background
 }
 
 function init(overrides = {}) {

@@ -1,0 +1,7 @@
+{
+    "version": "2.1.0",
+    "url": "updates/app-2.1.0.json.gz",
+    "sha256": "fbd01abdbe2b1ead5924552f4fb9e9064934b69809b53e044ee66abad2d484b0",
+    "size": 574029,
+    "notes": "Self-update: the app now checks this repository for new versions of its code"
+}

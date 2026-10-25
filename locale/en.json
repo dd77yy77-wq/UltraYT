@@ -134,7 +134,7 @@
         },
         "auto_update": {
             "title": "Automatic Updates",
-            "description": "Download new versions in the background and install them when UltraYT closes. When off, you can still check for updates from the About page"
+            "description": "Check for new versions at startup and download them in the background. A downloaded version starts the next time UltraYT is launched. When off, you can still check for updates from the About page"
         },
         "pause_on_blur": {
             "title": "Pause on Blur",
@@ -264,7 +264,7 @@
                 "ready_detail": "Restart UltraYT to install version {version}.",
                 "install_update": "Restart and install",
                 "error_title": "Couldn’t check for updates",
-                "error_detail": "Check your connection and try again, or open the releases page.",
+                "error_detail": "Check your connection and try again.",
                 "try_again": "Try again",
                 "development_title": "Development build",
                 "development_detail": "Automatic update checks are available in packaged builds.",
