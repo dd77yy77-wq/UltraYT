@@ -23,11 +23,12 @@
 #include "WebView2.h"
 #include "WebView2Loader.h"
 #include "iids.h"
-#include "inject_js.h" // kInjectScript, generated from src/inject.js by build.sh
+#include "inject_js.h"  // kInjectScript, generated from src/inject.js by build.sh (the TV interface)
+#include "desktop_js.h" // kDesktopScript, generated from src/desktop.js by build.sh (the normal site)
 
 using Microsoft::WRL::ComPtr;
 
-#define LITE_VERSION L"0.2.0"
+#define LITE_VERSION L"0.3.0"
 
 static const wchar_t kAppName[] = L"UltraYT Lite";
 static const wchar_t kClassName[] = L"UltraYTLiteWindow";
@@ -383,11 +384,18 @@ static void AddEventHandlers() {
     closing->Release();
 }
 
-// the normal site needs nothing extra: the WebView2 browser identifies itself as Edge, which YouTube and Google accept
+// the normal site needs no user agent change: the WebView2 browser identifies itself as Edge, which YouTube and Google accept
+// it only gets a small page script (the large fullscreen button), a failed script must not stop the page from opening
 // the TV interface needs the user agent first (it has to be in place before the first request), then the scripts, then the page
 static void StartNavigation() {
     if (!g.tvMode) {
-        g.webview->Navigate(kDesktopUrl);
+        auto afterDesktopScript = Callback<ICoreWebView2AddScriptToExecuteOnDocumentCreatedCompletedHandler, HRESULT, LPCWSTR>::Make(
+            [](HRESULT, LPCWSTR) -> HRESULT {
+                g.webview->Navigate(kDesktopUrl);
+                return S_OK;
+            });
+        g.webview->AddScriptToExecuteOnDocumentCreated(kDesktopScript, afterDesktopScript);
+        afterDesktopScript->Release();
         return;
     }
 
@@ -411,6 +419,27 @@ static void StartNavigation() {
     HRESULT hr = g.webview->CallDevToolsProtocolMethod(L"Emulation.setUserAgentOverride", override.c_str(), afterUserAgent);
     afterUserAgent->Release();
     if (FAILED(hr)) ShowError(L"Не удалось запустить YouTube.", hr);
+}
+
+// the title bar in YouTube red with white text (Windows 11 colours the caption and the border, older Windows just ignores the request)
+static void ColorTitleBar(HWND window) {
+    constexpr DWORD kCaptionColor = 35;     // DWMWA_CAPTION_COLOR
+    constexpr DWORD kBorderColor = 34;      // DWMWA_BORDER_COLOR
+    constexpr DWORD kTextColor = 36;        // DWMWA_TEXT_COLOR
+    constexpr COLORREF kRed = RGB(0xFF, 0x00, 0x00);
+    constexpr COLORREF kWhite = RGB(0xFF, 0xFF, 0xFF);
+
+    HMODULE dwm = LoadLibraryW(L"dwmapi.dll");
+    if (!dwm) return;
+
+    using SetAttribute = HRESULT(WINAPI*)(HWND, DWORD, LPCVOID, DWORD);
+    auto setAttribute = reinterpret_cast<SetAttribute>(reinterpret_cast<void*>(GetProcAddress(dwm, "DwmSetWindowAttribute")));
+    if (setAttribute) {
+        setAttribute(window, kCaptionColor, &kRed, sizeof(kRed));
+        setAttribute(window, kBorderColor, &kRed, sizeof(kRed));
+        setAttribute(window, kTextColor, &kWhite, sizeof(kWhite));
+    }
+    FreeLibrary(dwm);
 }
 
 static HRESULT OnControllerCreated(HRESULT result, ICoreWebView2Controller* controller) {
@@ -536,6 +565,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         ShowError(L"Не удалось создать окно.", HRESULT_FROM_WIN32(GetLastError()));
         return 1;
     }
+
+    ColorTitleBar(g.window);
 
     g.tvMode = wcsstr(GetCommandLineW(), L"--tv") != nullptr;
     bool startFullscreen = wcsstr(GetCommandLineW(), L"--fullscreen") != nullptr;

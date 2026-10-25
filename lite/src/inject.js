@@ -7,7 +7,7 @@
     if (window.top !== window) return;                       // only the page itself, not frames (ads, sign-in frames)
     if (!/(^|\.)youtube\.com$/.test(location.hostname)) return; // only YouTube
     if (window.__ultraytLite) return;
-    window.__ultraytLite = { version: '0.2.0' };
+    window.__ultraytLite = { version: '0.3.0' };
 
     var BUTTON_OFFSET = 32768;
     var AXIS_THRESHOLD = 0.5;

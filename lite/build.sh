@@ -14,6 +14,12 @@ mkdir -p "$OUT"
   printf '\n)__JS__";\n'
 } > "$OUT/inject_js.h"
 
+{
+  printf 'static const wchar_t kDesktopScript[] = LR"__JS__(\n'
+  cat "$HERE/src/desktop.js"
+  printf '\n)__JS__";\n'
+} > "$OUT/desktop_js.h"
+
 (cd "$HERE/res" && x86_64-w64-mingw32-windres lite.rc -O coff -o "$OUT/lite.res")
 
 x86_64-w64-mingw32-clang++ -std=c++20 -O2 -Wall -Wno-unused-parameter -municode -mwindows -static -s \
