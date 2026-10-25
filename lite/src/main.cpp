@@ -27,12 +27,13 @@
 
 using Microsoft::WRL::ComPtr;
 
-#define LITE_VERSION L"0.1.0"
+#define LITE_VERSION L"0.2.0"
 
 static const wchar_t kAppName[] = L"UltraYT Lite";
 static const wchar_t kClassName[] = L"UltraYTLiteWindow";
 static const wchar_t kMutexName[] = L"UltraYTLite.SingleInstance";
-static const wchar_t kStartUrl[] = L"https://www.youtube.com/tv";
+static const wchar_t kDesktopUrl[] = L"https://www.youtube.com/"; // the normal site, the default
+static const wchar_t kTvUrl[] = L"https://www.youtube.com/tv";     // the TV interface, with --tv
 static const wchar_t kRuntimeDownloadPage[] = L"https://go.microsoft.com/fwlink/p/?LinkId=2124703";
 
 // ---------------------------------------------------------------------------------------------------- application state
@@ -44,6 +45,7 @@ struct App {
     ComPtr<ICoreWebView2Controller> controller;
     ComPtr<ICoreWebView2> webview;
 
+    bool tvMode = false; // --tv: the TV interface with a TV user agent and gamepad keys instead of the normal site
     bool fullscreen = false;
     bool fullscreenBeforePage = false; // whether the window was already fullscreen when the page asked for fullscreen
     WINDOWPLACEMENT placement = {};
@@ -270,9 +272,10 @@ static void ConfigureSettings() {
     ComPtr<ICoreWebView2Settings> settings;
     if (FAILED(g.webview->get_Settings(&settings)) || !settings) return;
 
+    // the normal site keeps the browser behaviour (right-click menu, zoom with Ctrl and the wheel), the TV interface does not need it
     settings->put_IsStatusBarEnabled(FALSE);
-    settings->put_AreDefaultContextMenusEnabled(FALSE);
-    settings->put_IsZoomControlEnabled(FALSE);
+    settings->put_AreDefaultContextMenusEnabled(g.tvMode ? FALSE : TRUE);
+    settings->put_IsZoomControlEnabled(g.tvMode ? FALSE : TRUE);
     settings->put_IsBuiltInErrorPageEnabled(TRUE);
     settings->put_AreDevToolsEnabled(TRUE); // F12 opens them, useful when something does not work
 }
@@ -380,8 +383,14 @@ static void AddEventHandlers() {
     closing->Release();
 }
 
-// user agent first (it has to be in place before the first request), then the scripts, then the page
+// the normal site needs nothing extra: the WebView2 browser identifies itself as Edge, which YouTube and Google accept
+// the TV interface needs the user agent first (it has to be in place before the first request), then the scripts, then the page
 static void StartNavigation() {
+    if (!g.tvMode) {
+        g.webview->Navigate(kDesktopUrl);
+        return;
+    }
+
     std::wstring override = UserAgentOverride();
 
     auto afterUserAgent = Callback<ICoreWebView2CallDevToolsProtocolMethodCompletedHandler, HRESULT, LPCWSTR>::Make([](HRESULT result, LPCWSTR) -> HRESULT {
@@ -391,7 +400,7 @@ static void StartNavigation() {
             [](HRESULT scriptResult, LPCWSTR) -> HRESULT {
                 if (FAILED(scriptResult)) ShowError(L"Не удалось подключить управление геймпадом.", scriptResult);
 
-                g.webview->Navigate(kStartUrl);
+                g.webview->Navigate(kTvUrl);
                 return S_OK;
             });
         g.webview->AddScriptToExecuteOnDocumentCreated(kInjectScript, afterScript);
@@ -528,6 +537,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         return 1;
     }
 
+    g.tvMode = wcsstr(GetCommandLineW(), L"--tv") != nullptr;
     bool startFullscreen = wcsstr(GetCommandLineW(), L"--fullscreen") != nullptr;
     ShowWindow(g.window, startFullscreen ? SW_SHOWNORMAL : SW_SHOWMAXIMIZED);
     if (startFullscreen) SetFullscreen(true);

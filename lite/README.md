@@ -1,8 +1,10 @@
 # UltraYT Lite
 
-YouTube TV (the console / TV interface) in a small native Windows window. It uses the WebView2 runtime that is part of Windows 11, so no browser engine is bundled and the program is about 400 KB.
+YouTube in a small native Windows window: the normal youtube.com site by default, the TV interface with `--tv`. It uses the WebView2 runtime that is part of Windows 11, so no browser engine is bundled and the program is about 400 KB.
 
-Status: first prototype (stage 1). Window, YouTube TV with a TV user agent, fullscreen (`F11` or `Alt+Enter`), gamepad support, developer tools (`F12`), sign-in is kept in `%LOCALAPPDATA%\UltraYT Lite`. Start it with `--fullscreen` to open in fullscreen.
+Status: early prototype. Works like a browser window without browser chrome: touch, mouse and keyboard as on youtube.com, the right-click menu, zoom with `Ctrl` + wheel, fullscreen (`F11`, `Alt+Enter` or the video's own button), developer tools (`F12`). Sign-in is kept in `%LOCALAPPDATA%\UltraYT Lite`.
+
+Command line: `--fullscreen` starts in fullscreen, `--tv` opens the TV interface (`youtube.com/tv`) with a TV user agent and gamepad support (the gamepad script in `src/inject.js` is only used in this mode).
 
 ## Build
 

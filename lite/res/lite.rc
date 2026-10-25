@@ -2,8 +2,8 @@
 1 24 "lite.manifest"
 
 1 VERSIONINFO
-FILEVERSION 0,1,0,0
-PRODUCTVERSION 0,1,0,0
+FILEVERSION 0,2,0,0
+PRODUCTVERSION 0,2,0,0
 FILEOS 0x4
 FILETYPE 0x1
 {
@@ -12,10 +12,10 @@ FILETYPE 0x1
         BLOCK "040904b0"
         {
             VALUE "ProductName", "UltraYT Lite"
-            VALUE "FileDescription", "UltraYT Lite - YouTube for TV on WebView2"
+            VALUE "FileDescription", "UltraYT Lite - YouTube on WebView2"
             VALUE "OriginalFilename", "UltraYT-Lite.exe"
-            VALUE "FileVersion", "0.1.0"
-            VALUE "ProductVersion", "0.1.0"
+            VALUE "FileVersion", "0.2.0"
+            VALUE "ProductVersion", "0.2.0"
         }
     }
     BLOCK "VarFileInfo"
