@@ -5,7 +5,7 @@ Built for handhelds such as the ROG Xbox Ally X.
 
 ## Run
 
-Download `UltraYT.exe` (one file) and start it. The first launch unpacks the program into `%LOCALAPPDATA%\UltraYT\app` (about 370 MB, under a minute); after that it starts immediately.
+Download `UltraYT.exe` (one file) and start it. The first launch unpacks the program into `%LOCALAPPDATA%\UltraYT\app` (about 320 MB, under a minute); after that it starts immediately.
 Settings and your sign-in are stored in `%APPDATA%\UltraYT`. Press `R3` on the controller or `Ctrl+O` to open the settings.
 
 ## Updates
@@ -27,8 +27,8 @@ To publish an update: raise `version` in `package.json`, run `node tools/make-up
 
 ## Build
 
-`./build.sh` produces `UltraYT.exe` on Linux or macOS. It needs `curl`, `unzip`, `zip`, `python3` and the [llvm-mingw](https://github.com/mstorsjo/llvm-mingw) toolchain on `PATH`.
-The exe is a small launcher (`launcher/`) with the Electron app appended as a zip. `shims/` holds minimal stand-ins for two npm packages so no package registry is needed.
+`./build.sh` produces `UltraYT.exe` on Linux or macOS. It needs `curl`, `unzip`, `python3` and the [llvm-mingw](https://github.com/mstorsjo/llvm-mingw) toolchain on `PATH`.
+The exe is a small launcher (`launcher/`) with the Electron app appended as a zip (LZMA-compressed, about 105 MB; only the English and Russian Chromium interface languages are kept, see `KEEP_LOCALES` in `build.sh`). `shims/` holds minimal stand-ins for two npm packages so no package registry is needed.
 Pushing a `v*` tag runs the same build on GitHub and attaches `UltraYT.exe` to the release.
 
 ## License

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds the single-file UltraYT.exe (Windows x64) on Linux or macOS.
-# Needs: curl, unzip, zip, python3 and the llvm-mingw toolchain (x86_64-w64-mingw32-clang, -windres) on PATH.
+# Needs: curl, unzip, python3 and the llvm-mingw toolchain (x86_64-w64-mingw32-clang, -windres) on PATH.
 # Electron is downloaded from its official GitHub release and checked against the published checksum.
 set -euo pipefail
 
@@ -17,6 +17,12 @@ curl -fsSL -o "$OUT/SHASUMS256.txt" "$BASE/SHASUMS256.txt"
 
 unzip -q "$OUT/$ZIP" -d "$OUT/UltraYT"
 rm -f "$OUT/UltraYT/resources/default_app.asar"
+
+# Chromium's own interface languages: keep English (required) and Russian, drop the other ~50 (about 46 MB unpacked)
+KEEP_LOCALES="en-US ru"
+for pak in "$OUT/UltraYT/locales/"*.pak; do
+  case " $KEEP_LOCALES " in *" $(basename "$pak" .pak) "*) ;; *) rm -f "$pak" ;; esac
+done
 APP="$OUT/UltraYT/resources/app"
 mkdir -p "$APP/node_modules"
 cp -r "$HERE/src" "$HERE/locale" "$HERE/assets" "$HERE/LICENSE" "$APP/"
@@ -28,7 +34,7 @@ json.dump({k: p[k] for k in keep if k in p}, open(sys.argv[2], 'w', encoding='ut
 PY
 cp -r "$HERE/shims/"* "$APP/node_modules/"
 mv "$OUT/UltraYT/electron.exe" "$OUT/UltraYT/UltraYT.exe"
-(cd "$OUT/UltraYT" && zip -q -r -9 -X ../payload.zip .)
+python3 "$HERE/launcher/pack_payload.py" "$OUT/UltraYT" "$OUT/payload.zip"  # LZMA, takes a few minutes
 
 cd "$HERE/launcher"
 x86_64-w64-mingw32-windres stub.rc -O coff -o "$OUT/stub.res"

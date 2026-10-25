@@ -1,7 +1,7 @@
 /*
  * unzipcore.h - small, dependency-free reader for a zip archive appended to an executable.
- * Supports stored and deflate entries (no zip64, no encryption). Used by the UltraYT single-file launcher.
- * The inflate code is written from the RFC 1951 description.
+ * Supports stored, deflate and LZMA (method 14) entries (no zip64, no encryption). Used by the UltraYT single-file launcher.
+ * The inflate code is written from the RFC 1951 description, the LZMA decoder is the public domain one from the LZMA SDK (lzma/).
  */
 #ifndef UNZIPCORE_H
 #define UNZIPCORE_H
@@ -9,6 +9,9 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
+#include <stdlib.h>
+
+#include "lzma/LzmaDec.c" /* single translation unit, so the decoder is simply included */
 
 /* ---------------------------------------------------------------- crc32 */
 
@@ -271,6 +274,25 @@ static int uz_inflate(const unsigned char *in, size_t inlen, unsigned char *out,
     return s.outpos == outcap ? 0 : -1;
 }
 
+/* ----------------------------------------------------------------- lzma */
+
+static void *uz_lzma_alloc(ISzAllocPtr p, size_t size) { (void)p; return malloc(size ? size : 1); }
+static void uz_lzma_free(ISzAllocPtr p, void *address) { (void)p; free(address); }
+
+/* zip method 14: 2 bytes version, 2 bytes properties size (5), the properties, then the raw LZMA stream.
+ * unpacks exactly outcap bytes; whatever follows them (an end marker) is not looked at */
+static int uz_lzma(const unsigned char *in, size_t inlen, unsigned char *out, size_t outcap) {
+    if (inlen < 9 || in[2] != 5 || in[3] != 0) return -1;
+
+    ISzAlloc alloc = { uz_lzma_alloc, uz_lzma_free };
+    SizeT destLen = outcap, srcLen = inlen - 9;
+    ELzmaStatus status;
+
+    SRes res = LzmaDecode(out, &destLen, in + 9, &srcLen, in + 4, 5, LZMA_FINISH_ANY, &status, &alloc);
+    if (res != SZ_OK || destLen != outcap) return -1;
+    return 0;
+}
+
 /* ------------------------------------------------------------------ zip */
 
 typedef struct {
@@ -354,6 +376,8 @@ static int uz_extract(const uz_zip *z, const uz_entry *e, unsigned char *out) {
         if (e->usize) memcpy(out, cdata, e->usize);
     } else if (e->method == 8) {
         if (e->usize && uz_inflate(cdata, e->csize, out, e->usize)) return -1;
+    } else if (e->method == 14) {
+        if (e->usize && uz_lzma(cdata, e->csize, out, e->usize)) return -1;
     } else {
         return -1;
     }
