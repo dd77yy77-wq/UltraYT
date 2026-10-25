@@ -1,0 +1,39 @@
+name: Build UltraYT.exe
+
+on:
+  workflow_dispatch:
+  push:
+    tags: [ 'v*' ]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unit tests
+        run: node --test
+
+      - name: Install llvm-mingw
+        run: |
+          T=20261020
+          curl -fsSL -o llvm.tar.xz "https://github.com/mstorsjo/llvm-mingw/releases/download/$T/llvm-mingw-$T-ucrt-ubuntu-22.04-x86_64.tar.xz"
+          tar xJf llvm.tar.xz
+          echo "$PWD/llvm-mingw-$T-ucrt-ubuntu-22.04-x86_64/bin" >> "$GITHUB_PATH"
+
+      - name: Build UltraYT.exe
+        run: ./build.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: UltraYT
+          path: UltraYT.exe
+
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" UltraYT.exe --title "UltraYT $GITHUB_REF_NAME" --generate-notes
