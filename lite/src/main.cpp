@@ -18,6 +18,7 @@
 #include <cstdio>
 #include <cwchar>
 #include <functional>
+#include <memory>
 #include <string>
 
 #include "WebView2.h"
@@ -28,7 +29,12 @@
 
 using Microsoft::WRL::ComPtr;
 
-#define LITE_VERSION L"0.3.2"
+#define LITE_VERSION_A "0.4.0"
+#define LITE_WIDEN2(text) L##text
+#define LITE_WIDEN(text) LITE_WIDEN2(text)
+#define LITE_VERSION LITE_WIDEN(LITE_VERSION_A)
+
+#include "updater.h" // the self-update (needs LITE_VERSION)
 
 static const wchar_t kAppName[] = L"UltraYT Lite";
 static const wchar_t kClassName[] = L"UltraYTLiteWindow";
@@ -233,6 +239,13 @@ static LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wparam, LPA
             const RECT* suggested = reinterpret_cast<const RECT*>(lparam);
             SetWindowPos(window, nullptr, suggested->left, suggested->top, suggested->right - suggested->left, suggested->bottom - suggested->top,
                          SWP_NOZORDER | SWP_NOACTIVATE);
+            return 0;
+        }
+        case updater::kInstalledMessage: {
+            // the new program is in place, it starts the next time (the title bar is the only place that is always there)
+            std::unique_ptr<wchar_t[]> version(reinterpret_cast<wchar_t*>(lparam));
+            std::wstring title = std::wstring(kAppName) + L" — обновление " + version.get() + L" установлено, перезапустите программу";
+            SetWindowTextW(window, title.c_str());
             return 0;
         }
         case WM_CLOSE:
@@ -512,6 +525,8 @@ static bool StartWebView() {
     std::wstring folder = std::wstring(localAppData) + L"\\UltraYT Lite";
     std::wstring data = folder + L"\\WebView2"; // sign-in and settings of the page live here
     SHCreateDirectoryExW(nullptr, data.c_str(), nullptr);
+
+    if (!wcsstr(GetCommandLineW(), L"--no-update")) updater::Start(g.window, folder, LITE_VERSION_A);
 
     auto options = new EnvironmentOptions();
     auto handler = Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler, HRESULT, ICoreWebView2Environment*>::Make(OnEnvironmentCreated);

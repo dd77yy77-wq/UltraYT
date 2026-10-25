@@ -26,5 +26,5 @@ x86_64-w64-mingw32-clang++ -std=c++20 -O2 -Wall -Wno-unused-parameter -municode 
   -I"$HERE/third_party/webview2" -I"$HERE/third_party/loader" -I"$OUT" \
   "$HERE/src/main.cpp" "$HERE/third_party/loader/WebView2Loader.cpp" "$OUT/lite.res" \
   -o "$HERE/${OUT_NAME:-UltraYT-Lite.exe}" \
-  -lole32 -lshell32 -luser32 -lgdi32 -ladvapi32 -lversion -loleaut32 -luuid
+  -lole32 -lshell32 -luser32 -lgdi32 -ladvapi32 -lversion -loleaut32 -luuid -lwinhttp
 echo "done: $HERE/${OUT_NAME:-UltraYT-Lite.exe}"

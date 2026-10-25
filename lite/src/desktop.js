@@ -18,7 +18,7 @@
         fallbackMs: 800,      // when fullscreen did not change this long after a press, ask the browser for it directly
         passMs: 500           // after a touch that was not for the button, taps keep going through to the player for this long
     };
-    window.__ultraytDesktop = { version: '0.3.2', config };
+    window.__ultraytDesktop = { version: '0.4.0', config };
 
     const BUTTON_ID = 'ultrayt-fullscreen';
     const CIRCLE = 104;     // the visible round button, css pixels
