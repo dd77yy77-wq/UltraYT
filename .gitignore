@@ -135,3 +135,5 @@ flatpak/generated-sources.json
 /UltraYT.exe
 /UltraYT-slim.exe
 /launcher/test_extract
+/lite/out/
+/lite/UltraYT-Lite.exe
