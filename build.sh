@@ -18,6 +18,9 @@ curl -fsSL -o "$OUT/SHASUMS256.txt" "$BASE/SHASUMS256.txt"
 unzip -q "$OUT/$ZIP" -d "$OUT/UltraYT"
 rm -f "$OUT/UltraYT/resources/default_app.asar"
 
+# Optional: DROP_FILES="dxcompiler.dll dxil.dll" leaves these Chromium files out (they are only used for WebGPU), OUT_NAME sets the exe's name
+for f in ${DROP_FILES:-}; do rm -f "$OUT/UltraYT/$f"; done
+
 # Chromium's own interface languages: keep English (required) and Russian, drop the other ~50 (about 46 MB unpacked)
 KEEP_LOCALES="en-US ru"
 for pak in "$OUT/UltraYT/locales/"*.pak; do
@@ -39,5 +42,5 @@ python3 "$HERE/launcher/pack_payload.py" "$OUT/UltraYT" "$OUT/payload.zip"  # LZ
 cd "$HERE/launcher"
 x86_64-w64-mingw32-windres stub.rc -O coff -o "$OUT/stub.res"
 x86_64-w64-mingw32-clang -O2 -municode -mwindows -static -s -o "$OUT/stub.exe" stub.c "$OUT/stub.res" -lcomctl32 -luser32 -lkernel32
-cat "$OUT/stub.exe" "$OUT/payload.zip" > "$HERE/UltraYT.exe"
-echo "done: $HERE/UltraYT.exe"
+cat "$OUT/stub.exe" "$OUT/payload.zip" > "$HERE/${OUT_NAME:-UltraYT.exe}"
+echo "done: $HERE/${OUT_NAME:-UltraYT.exe}"
