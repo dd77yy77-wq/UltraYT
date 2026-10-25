@@ -137,3 +137,6 @@ flatpak/generated-sources.json
 /launcher/test_extract
 /lite/out/
 /lite/UltraYT-Lite.exe
+
+# the published update of UltraYT Lite is committed (the program downloads it from here)
+!/lite/dist/
